@@ -1,0 +1,93 @@
+---
+title: "Analyze_Zika_Dataset"
+author: "Sunil Iyengar"
+date: "August 4, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Cleaning and dataset manupulation 
+```{r clean}
+dszika <- read.csv("C://Temp//zika//cdc_zika.csv",na.strings = c(""))
+dszika$value <- as.numeric(dszika$value)
+dszika$report_date <- as.Date(dszika$report_date)
+
+#Extract Country
+dszika$Country <- substr(dszika$location,start = 1, stop = regexpr(pattern = "[[:alnum:]]-",text = dszika$location))
+dszika$Country <- factor(dszika$Country)
+
+#Extract State
+temp <- substr(dszika$location,start = regexpr(pattern = "-[[:alnum:]]-*",text = dszika$location), stop = nchar(as.character(dszika$location)))
+temp <- substr(temp, start = regexpr(pattern = "-*",text = temp) + 1, stop = nchar(temp))
+dszika$State <- substr(temp, start = 1, stop = regexpr(pattern = "[[:alnum:]]-",text = temp))
+dszika$State <- factor(dszika$State)
+
+#Extract Year from Report Date
+dszika$Year <- substr(dszika$report_date,start = 1, stop = regexpr(pattern = "[[:alnum:]]-",text = dszika$report_date))
+dszika$Year <- factor(dszika$Year)
+
+#Extract Month from Report Date
+dszika$Month <- substr(x = dszika$report_date, start = regexpr(pattern = "-+", text = dszika$report_date) + 1, stop=regexpr(pattern = "-+", text = dszika$report_date) + 2)
+dszika$Month <- factor(dszika$Month)
+
+#Remove columns that have no value
+dszika$time_period <- NULL
+dszika$time_period_type <- NULL
+
+#Create dataset with no NA in the Report_Date field
+dszika1 <- dszika[which(complete.cases(dszika$report_date)),]
+
+```
+
+## Summary of the resultant dataset after manipulation
+
+```{r summary}
+summary(dszika1)
+str(dszika1)
+
+```
+
+##Plots and analysis
+
+<p>Plot of Number of cases reported across various dates</p>
+```{r plot1, echo=FALSE}
+library(ggplot2)
+dsZikaObjBase <- ggplot(data=dszika1, aes(x=format(report_date,"%b/%Y"), color=Country))
+dsZikaObjBase + geom_bar(aes(fill=Country),position = "dodge") + xlab("Reported Date") + ylab("No. of Cases Reported")
+```
+It is very clear from the above plot that Colombia has the highest reported cases. In fact, 81% of cases reported are from Colombia</b>
+
+```{r }
+#Percentage of Colombia cases 
+paste(round((nrow(dszika1[dszika1$Country=="Colombia",]) / nrow(dszika1)) * 100,2),"%")
+```
+
+<p>Let us see the number of cases report across different months</p>
+
+```{r, echo=FALSE}
+dsZikaObjBase + geom_density(aes(fill=Country),position = "stack") +  xlab("Reported Date") + ylab("No. of Cases Reported")
+```
+
+<p>Wow! April has the highest reported cases</p>
+<p>Okay, now lets analyze Colmbia, since it has the bulk of cases reported. <BR>
+What percentage are confirmed cases?</p>
+
+```{r}
+#Percentage of Colombia cases - Confirmed cases vs total cases 
+paste(round(nrow(dszika1[dszika1$Country=="Colombia" & (dszika1$data_field_code == "CO0001" | dszika1$data_field_code == "CO0002"),]) / nrow(dszika1[dszika1$Country=="Colombia",]) * 100,2), "%")
+```
+<p>Interestingly almost <b>50% are confirmed cases</b>. The remaining <b>50% are suspected</b> cases</p>
+
+<p>Now let us visualize break up as per case type</p>
+
+```{r plot4, echo=FALSE}
+#Create a new data set for Colombia and do some more analysis
+dszikaColombia <- dszika1[dszika1$Country=="Colombia",]
+
+#Case type wise breakup for Colombia
+ggplot(data=dszikaColombia, aes(x=format(report_date,"%b/%Y"), color=data_field)) + geom_bar(aes(fill=data_field),position = "dodge") + xlab("Reported Date") + ylab("No. of Cases Reported")
+```
+
+<H3>That is it for now. Deeper analysis coming up! Check back for updates.</H3>
